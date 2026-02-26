@@ -26,7 +26,9 @@ async function run() {
   const repo = await gitCloud.repository('demo-repo');
 
   console.log('Initializing repository...');
-  await repo.init();
+  await repo.init({ metadata: { version: '1.0.0' } });
+
+  console.log('Initial metadata:', await repo.readFile('/metadata.json', { encoding: 'utf8' }));
 
   console.log('Creating a file...');
   const repoRoot = 'my-workspaces/demo-repo';

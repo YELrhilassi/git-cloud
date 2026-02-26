@@ -50,13 +50,33 @@ export class Repository {
   }
 
   /**
-   * Initializes a new repository
+   * Initializes a new repository with metadata.json
    */
-  async init(options: { dir?: string; defaultBranch?: string } = {}) {
+  async init(options: { dir?: string; defaultBranch?: string; metadata?: any } = {}) {
+    const defaultBranch = options.defaultBranch || 'main';
+    const dir = options.dir || '/';
+
     await git.init({
       fs: this.fs,
-      dir: options.dir || '/',
-      defaultBranch: options.defaultBranch || 'main',
+      dir,
+      defaultBranch,
+    });
+
+    // Create initial metadata.json
+    const initialMetadata = {
+      repoId: this.id,
+      createdAt: new Date().toISOString(),
+      ...options.metadata
+    };
+
+    await this.writeFile('/metadata.json', JSON.stringify(initialMetadata, null, 2));
+    await this.add({ filepath: 'metadata.json', dir });
+    
+    await git.commit({
+      fs: this.fs,
+      dir,
+      message: 'Initial repository structure with metadata',
+      author: { name: 'Git-Cloud System', email: 'system@git-cloud.io' }
     });
   }
 

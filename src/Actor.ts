@@ -19,22 +19,10 @@ export class Actor {
   async setup() {
     const branches = await this.repo.listBranches();
     
-    let mainHasCommit = false;
-    try {
-        await git.resolveRef({ fs: this.repo.fs, dir: '/', ref: 'main' });
-        mainHasCommit = true;
-    } catch (e) {}
-
     if (!branches.includes(this.branchName)) {
-      if (mainHasCommit) {
-        await this.repo.createBranch({ name: this.branchName });
-        await this.repo.checkout({ ref: this.branchName });
-      } else {
-        await this.repo.checkout({ ref: 'main' });
-      }
-    } else {
-      await this.repo.checkout({ ref: this.branchName });
+      await this.repo.createBranch({ name: this.branchName });
     }
+    await this.repo.checkout({ ref: this.branchName });
   }
 
   async update(options: { excludePaths?: string[] } = {}) {
@@ -134,6 +122,19 @@ export class Actor {
         await this.repo.writeFile(`/${path}`, Buffer.from(content.blob));
         await this.repo.add({ filepath: path });
       }
+
+      // Update metadata.json on main
+      let metadata: any = {};
+      try {
+        const metaStr = await this.repo.readFile('/metadata.json', { encoding: 'utf8' });
+        metadata = JSON.parse(metaStr as string);
+      } catch (e) {}
+
+      metadata.lastPublishedBy = this.identity.name;
+      metadata.lastUpdatedAt = new Date().toISOString();
+
+      await this.repo.writeFile('/metadata.json', JSON.stringify(metadata, null, 2));
+      await this.repo.add({ filepath: 'metadata.json' });
 
       await this.repo.commit({
         message: `Published selective changes from ${this.identity.name}`,

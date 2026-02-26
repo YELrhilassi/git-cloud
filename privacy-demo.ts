@@ -22,19 +22,17 @@ async function run() {
   });
 
   const repo = await gitCloud.repository('patient-alice-001');
-  await repo.init();
+  await repo.init({ metadata: { patientName: 'Alice' } });
 
   const aliceIdentity = { name: 'Alice', email: 'alice@example.com' };
   const alice = repo.actor(aliceIdentity);
-
-  // 1. Initial Commit on Main (Required to branch)
-  console.log('Alice making initial commit on Main...');
-  await repo.writeFile('README.md', '# Patient Alice Vault');
-  await repo.add({ filepath: 'README.md' });
-  await repo.commit({ message: 'Initial commit', author: aliceIdentity });
   
-  await alice.setup(); // Now it can create actors/alice
+  await alice.setup(); 
   console.log('Alice now on branch:', await repo.getCurrentBranch());
+
+  // Check initial metadata
+  const initialMeta = await repo.readFile('/metadata.json', { encoding: 'utf8' });
+  console.log('Initial metadata:', initialMeta);
 
   // 2. Alice creates a PUBLIC record (Shared with everyone via Main)
   console.log('Alice creating a SHARED collection...');
@@ -56,6 +54,9 @@ async function run() {
   await repo.checkout({ ref: 'main' });
   const mainFiles = await repo.listFiles({ ref: 'main' });
   console.log('Files on Main branch:', mainFiles);
+
+  const updatedMeta = await repo.readFile('/metadata.json', { encoding: 'utf8' });
+  console.log('Metadata after Alice publish:', updatedMeta);
   // Expected: includes shared-info, NOT private-diary
 
   // 5. Doctor Actor joins and adds a record
