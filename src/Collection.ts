@@ -1,14 +1,21 @@
 import type { Repository } from './Repository';
 
+export enum Visibility {
+  Public = 'public',
+  Private = 'private'
+}
+
 export class Collection {
   constructor(
     private repo: Repository,
     public readonly id: string,
-    private baseDir: string = 'collections'
+    private baseDir: string = 'collections',
+    public readonly visibility: Visibility = Visibility.Public
   ) {}
 
   private getCollectionPath(filePath: string): string {
-    const path = `${this.baseDir}/${this.id}/${filePath}`.replace(/\/+/g, '/');
+    const scope = this.visibility === Visibility.Private ? 'internal' : 'shared';
+    const path = `${this.baseDir}/${scope}/${this.id}/${filePath}`.replace(/\/+/g, '/');
     return path.startsWith('/') ? path : `/${path}`;
   }
 
@@ -34,7 +41,7 @@ export class Collection {
    */
   async list() {
     const dir = this.getCollectionPath('');
-    const allFiles = await this.repo.listFiles();
+    const allFiles = await this.repo.listFiles({});
     const prefix = dir.substring(1); // remove leading slash
     return allFiles
       .filter(f => f.startsWith(prefix))

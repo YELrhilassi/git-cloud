@@ -16,72 +16,134 @@ export class Actor {
     this.branchName = `actors/${identity.name.toLowerCase().replace(/\s+/g, '-')}`;
   }
 
-  /**
-   * Initializes the actor's branch from main if it doesn't exist.
-   */
   async setup() {
     const branches = await this.repo.listBranches();
+    
+    let mainHasCommit = false;
+    try {
+        await git.resolveRef({ fs: this.repo.fs, dir: '/', ref: 'main' });
+        mainHasCommit = true;
+    } catch (e) {}
+
     if (!branches.includes(this.branchName)) {
-      await this.repo.createBranch({ name: this.branchName });
+      if (mainHasCommit) {
+        await this.repo.createBranch({ name: this.branchName });
+        await this.repo.checkout({ ref: this.branchName });
+      } else {
+        await this.repo.checkout({ ref: 'main' });
+      }
+    } else {
+      await this.repo.checkout({ ref: this.branchName });
     }
   }
 
-  /**
-   * Updates the actor's branch with the latest changes from main.
-   */
-  async update() {
-    await git.merge({
-      fs: this.repo.fs,
-      dir: '/',
-      ours: this.branchName,
-      theirs: 'main',
-      author: this.identity,
-      fastForwardOnly: false
-    });
+  async update(options: { excludePaths?: string[] } = {}) {
+    if (!options.excludePaths || options.excludePaths.length === 0) {
+      await git.merge({
+        fs: this.repo.fs,
+        dir: '/',
+        ours: this.branchName,
+        theirs: 'main',
+        author: this.identity,
+        fastForwardOnly: false
+      });
+    } else {
+      const headBeforeMerge = await git.resolveRef({ fs: this.repo.fs, dir: '/', ref: this.branchName });
+      
+      await git.merge({
+        fs: this.repo.fs,
+        dir: '/',
+        ours: this.branchName,
+        theirs: 'main',
+        author: this.identity,
+        fastForwardOnly: false
+      });
+
+      // Crucial: After merge, we must CHECKOUT the branch to update the working tree
+      // before we can reliably remove things from it.
+      await this.repo.checkout({ ref: this.branchName });
+
+      for (const path of options.excludePaths) {
+         try {
+            const content = await git.readBlob({
+                fs: this.repo.fs,
+                dir: '/',
+                oid: headBeforeMerge,
+                filepath: path
+            }).catch(() => null);
+
+            if (content) {
+                await this.repo.writeFile(`/${path}`, Buffer.from(content.blob));
+                await this.repo.add({ filepath: path });
+            } else {
+                // Not there before merge -> Delete it
+                await this.repo.fs.unlink(`/${path}`).catch(() => {});
+                await git.remove({ fs: this.repo.fs, dir: '/', filepath: path });
+            }
+         } catch (e) {
+            await this.repo.fs.unlink(`/${path}`).catch(() => {});
+            await git.remove({ fs: this.repo.fs, dir: '/', filepath: path });
+         }
+      }
+      
+      await this.repo.commit({
+        message: `Merged main with exclusions`,
+        author: this.identity
+      });
+    }
+    
     await this.repo.checkout({ ref: this.branchName });
   }
 
-  /**
-   * Returns a list of changes that would be brought in from main.
-   */
   async previewUpdate() {
     const mainLog = await this.repo.log({ ref: 'main' });
     const actorLog = await this.repo.log({ ref: this.branchName });
-    
     const actorShas = new Set(actorLog.map(l => l.oid));
     return mainLog.filter(l => !actorShas.has(l.oid));
   }
 
-  /**
-   * Returns a list of changes that this actor would publish to main.
-   */
   async previewPublish() {
     const mainLog = await this.repo.log({ ref: 'main' });
     const actorLog = await this.repo.log({ ref: this.branchName });
-    
     const mainShas = new Set(mainLog.map(l => l.oid));
     return actorLog.filter(l => !mainShas.has(l.oid));
   }
 
-  /**
-   * Publishes the actor's changes back to the main branch.
-   */
-  async publish() {
-    await git.merge({
-      fs: this.repo.fs,
-      dir: '/',
-      ours: 'main',
-      theirs: this.branchName,
-      author: this.identity,
-      fastForwardOnly: false
-    });
-    // Stay on actor branch after publish, or switch to main? 
-    // Usually keep the actor on their branch.
+  async publish(options: { paths?: string[] } = {}) {
+    let pathsToPublish = options.paths;
+    if (!pathsToPublish) {
+      const allFiles = await this.repo.listFiles({});
+      pathsToPublish = allFiles.filter(f => f.startsWith('collections/shared/'));
+    }
+
+    if (pathsToPublish.length === 0) return;
+    const currentBranch = (await this.repo.getCurrentBranch())!;
+    
+    try {
+      await this.repo.checkout({ ref: 'main' });
+      const actorOid = await git.resolveRef({ fs: this.repo.fs, dir: '/', ref: `refs/heads/${this.branchName}` });
+      
+      for (const path of pathsToPublish) {
+        const content = await git.readBlob({
+          fs: this.repo.fs,
+          dir: '/',
+          oid: actorOid,
+          filepath: path
+        });
+        
+        await this.repo.writeFile(`/${path}`, Buffer.from(content.blob));
+        await this.repo.add({ filepath: path });
+      }
+
+      await this.repo.commit({
+        message: `Published selective changes from ${this.identity.name}`,
+        author: this.identity
+      });
+    } finally {
+      await this.repo.checkout({ ref: currentBranch });
+    }
   }
 
-  /**
-   * Commit changes to the actor's branch.
-   */
   async commit(message: string) {
     await this.repo.commit({
       message,
@@ -90,20 +152,11 @@ export class Actor {
     });
   }
 
-  /**
-   * Reverts the actor's branch to a previous commit.
-   */
   async revert(depth: number = 1) {
     const log = await this.repo.log({ ref: this.branchName, depth: depth + 1 });
     const target = log[depth];
     if (target) {
-      await git.checkout({
-        fs: this.repo.fs,
-        dir: '/',
-        ref: target.oid,
-        force: true
-      });
-      // To truly revert the branch head, we'd need to update the ref
+      await git.checkout({ fs: this.repo.fs, dir: '/', ref: target.oid, force: true });
       await git.writeRef({
         fs: this.repo.fs,
         dir: '/',

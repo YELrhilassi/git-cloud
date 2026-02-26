@@ -2,9 +2,11 @@ import * as git from 'isomorphic-git';
 import defaultHttp from 'isomorphic-git/http/node';
 import { GitCloudFS } from './vfs/GitCloudFS';
 import type { ILockProvider } from './types';
-import { Collection } from './Collection';
+import { Collection, Visibility } from './Collection';
 import { Actor } from './Actor';
 import type { ActorIdentity } from './Actor';
+
+export { Visibility };
 
 export class Repository {
   private http: any;
@@ -19,17 +21,18 @@ export class Repository {
   }
 
   /**
+   * Accesses a specific collection (Binder) within the repository.
+   */
+  collection(collectionId: string, options?: { baseDir?: string, visibility?: Visibility }) {
+    return new Collection(this, collectionId, options?.baseDir, options?.visibility);
+  }
+
+
+  /**
    * Accesses an Actor view of the repository.
    */
   actor(identity: ActorIdentity) {
     return new Actor(this, identity);
-  }
-
-  /**
-   * Accesses a specific collection (Binder) within the repository.
-   */
-  collection(collectionId: string, options?: { baseDir?: string }) {
-    return new Collection(this, collectionId, options?.baseDir);
   }
 
   /**
@@ -122,11 +125,16 @@ export class Repository {
     });
   }
 
-  async listFiles(dir: string = '/') {
-    return await git.listFiles({
-      fs: this.fs,
-      dir,
-    });
+  async listFiles(options: { dir?: string, ref?: string } = {}) {
+    try {
+        return await git.listFiles({
+            fs: this.fs,
+            dir: options.dir || '/',
+            ref: options.ref
+        });
+    } catch (e) {
+        return [];
+    }
   }
 
   /**
