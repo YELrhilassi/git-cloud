@@ -31,9 +31,20 @@ const gitCloud = new GitCloud({
 
 const repo = await gitCloud.repository('my-project');
 await repo.init();
-await repo.commit({
-  message: 'Initial commit',
-  author: { name: 'Dev', email: 'dev@example.com' }
+// ...
+```
+
+## Custom HTTP Plugin
+
+If you are using this in a custom environment or need specific proxy settings, you can provide your own `http` plugin (compatible with `isomorphic-git`'s http plugin API).
+
+```javascript
+import { GitCloud } from 'git-cloud';
+import http from 'isomorphic-git/http/node'; // or your custom plugin
+
+const gitCloud = new GitCloud({
+  storage: myStorageProvider,
+  http: http 
 });
 ```
 

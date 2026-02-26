@@ -8,17 +8,20 @@ export interface GitCloudConfig {
   storage: IStorageProvider;
   lock?: ILockProvider;
   baseDir?: string;
+  http?: any;
 }
 
 export class GitCloud {
   private storage: IStorageProvider;
   private lock: ILockProvider;
   private baseDir: string;
+  private http: any;
 
   constructor(config: GitCloudConfig) {
     this.storage = config.storage;
     this.baseDir = config.baseDir || 'git-cloud-data';
     this.lock = config.lock || new StorageLockProvider(this.storage, `${this.baseDir}/.locks`);
+    this.http = config.http;
   }
 
   /**
@@ -29,7 +32,7 @@ export class GitCloud {
     const namespace = new NamespaceManager(this.baseDir, repoId);
     const fs = new GitCloudFS(this.storage, namespace);
     
-    return new Repository(repoId, fs, this.lock);
+    return new Repository(repoId, fs, this.lock, this.http);
   }
 }
 

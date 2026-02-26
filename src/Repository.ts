@@ -1,14 +1,19 @@
 import * as git from 'isomorphic-git';
-import http from 'isomorphic-git/http/node';
+import defaultHttp from 'isomorphic-git/http/node/index.js';
 import { GitCloudFS } from './vfs/GitCloudFS.js';
 import type { ILockProvider } from './types.js';
 
 export class Repository {
+  private http: any;
+
   constructor(
     public readonly id: string,
     private fs: GitCloudFS,
-    private lock: ILockProvider
-  ) {}
+    private lock: ILockProvider,
+    http?: any
+  ) {
+    this.http = http || defaultHttp;
+  }
 
   /**
    * Initializes a new repository
@@ -42,7 +47,7 @@ export class Repository {
     try {
       await git.clone({
         fs: this.fs,
-        http,
+        http: this.http,
         dir,
         url: options.url,
         singleBranch: options.singleBranch,
@@ -68,7 +73,7 @@ export class Repository {
   async push(options: { url?: string; ref?: string; auth?: { username?: string; password?: string; token?: string } }) {
     await git.push({
       fs: this.fs,
-      http,
+      http: this.http,
       url: options.url,
       ref: options.ref,
       onAuth: () => ({ username: options.auth?.token || options.auth?.username, password: options.auth?.password }),
@@ -78,7 +83,7 @@ export class Repository {
   async pull(options: { ref?: string; auth?: { username?: string; password?: string; token?: string } }) {
     await git.pull({
       fs: this.fs,
-      http,
+      http: this.http,
       ref: options.ref,
       singleBranch: true,
       onAuth: () => ({ username: options.auth?.token || options.auth?.username, password: options.auth?.password }),
