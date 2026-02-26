@@ -1,0 +1,38 @@
+{
+  "name": "git-cloud",
+  "version": "1.0.0",
+  "description": "Serverless-optimized Git management for Node.js using adaptive storage (S3, Supabase, Local)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "demo": "tsx demo.ts"
+  },
+  "keywords": [
+    "git",
+    "serverless",
+    "isomorphic-git",
+    "s3",
+    "supabase",
+    "vfs",
+    "cloud"
+  ],
+  "author": "Opencode Agent",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.997.0",
+    "@supabase/supabase-js": "^2.97.0",
+    "isomorphic-git": "^1.37.2",
+    "path-browserify": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.3.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "tsx": "^4.19.3",
+    "typescript": "^5.9.3"
+  }
+}
