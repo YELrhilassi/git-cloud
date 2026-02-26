@@ -1,14 +1,16 @@
-import type { IStorageProvider, ILockProvider } from './types.js';
-import { NamespaceManager } from './NamespaceManager.js';
-import { GitCloudFS } from './vfs/GitCloudFS.js';
-import { StorageLockProvider } from './providers/StorageLockProvider.js';
-import { Repository } from './Repository.js';
+import type { IStorageProvider, ILockProvider } from './types';
+import { NamespaceManager } from './NamespaceManager';
+import { GitCloudFS } from './vfs/GitCloudFS';
+import { StorageLockProvider } from './providers/StorageLockProvider';
+import { CompressedStorageProvider } from './providers/CompressedStorageProvider';
+import { Repository } from './Repository';
 
 export interface GitCloudConfig {
   storage: IStorageProvider;
   lock?: ILockProvider;
   baseDir?: string;
   http?: any;
+  compression?: boolean;
 }
 
 export class GitCloud {
@@ -18,7 +20,9 @@ export class GitCloud {
   private http: any;
 
   constructor(config: GitCloudConfig) {
-    this.storage = config.storage;
+    this.storage = config.compression 
+      ? new CompressedStorageProvider(config.storage) 
+      : config.storage;
     this.baseDir = config.baseDir || 'git-cloud-data';
     this.lock = config.lock || new StorageLockProvider(this.storage, `${this.baseDir}/.locks`);
     this.http = config.http;
@@ -37,10 +41,12 @@ export class GitCloud {
 }
 
 // Export everything
-export * from './types.js';
-export * from './providers/LocalStorageProvider.js';
-export * from './providers/S3StorageProvider.js';
-export * from './providers/SupabaseStorageProvider.js';
-export * from './providers/StorageLockProvider.js';
-export * from './providers/CachedStorageProvider.js';
-export * from './Repository.js';
+export * from './types';
+export * from './providers/LocalStorageProvider';
+export * from './providers/S3StorageProvider';
+export * from './providers/SupabaseStorageProvider';
+export * from './providers/StorageLockProvider';
+export * from './providers/CachedStorageProvider';
+export * from './providers/CompressedStorageProvider';
+export * from './Repository';
+export * from './Collection';

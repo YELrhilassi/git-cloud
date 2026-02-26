@@ -25,11 +25,13 @@
     "@aws-sdk/client-s3": "^3.997.0",
     "@supabase/supabase-js": "^2.97.0",
     "isomorphic-git": "^1.37.2",
+    "pako": "^2.1.0",
     "path-browserify": "^1.0.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^25.3.0",
+    "@types/pako": "^2.0.4",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.19.3",

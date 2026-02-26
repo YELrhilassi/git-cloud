@@ -11,6 +11,8 @@ A serverless-optimized Git management library for Node.js.
 - **👥 Multi-Tenancy**: Manage multiple independent repositories in a single storage bucket using namespaces.
 - **🔒 Concurrency Control**: Distributed locking ensures safe operations across multiple serverless instances.
 - **⚡ Performance Caching**: Optional L1 cache using `/tmp` to minimize cloud storage latency and costs.
+- **📦 Smart Compression**: Automatic Zlib compression for text and Git objects, while skipping already compressed formats (JPG, PDF, etc.).
+- **📂 Binder Paradigm**: High-level `Collection` API for managing sets of files (like medical records) as logical units.
 - **🛠️ High-Level API**: Simple wrappers for `clone`, `commit`, `push`, `pull`, and `log`.
 
 ## Installation
@@ -32,6 +34,26 @@ const gitCloud = new GitCloud({
 const repo = await gitCloud.repository('my-project');
 await repo.init();
 // ...
+```
+
+## Binders & Collections
+
+The `Collection` API allows you to manage logical sets of files (like patient binders) without dealing with full paths manually.
+
+```javascript
+const patientRecord = repo.collection('patient-001');
+
+// Add a file to the binder
+await patientRecord.put('report.txt', 'Health summary...');
+
+// Add a binary file (automatically handles skip-compression for .jpg)
+await patientRecord.put('xray.jpg', imageBuffer);
+
+// Commit binder changes
+await patientRecord.commit('Added annual checkup', { name: 'Dr. Smith', email: 'smith@hosp.org' });
+
+// List contents of the binder
+const files = await patientRecord.list(); // ['report.txt', 'xray.jpg']
 ```
 
 ## Custom HTTP Plugin

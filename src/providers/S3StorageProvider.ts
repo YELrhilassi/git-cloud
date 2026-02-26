@@ -6,7 +6,7 @@ import {
   DeleteObjectCommand, 
   HeadObjectCommand 
 } from '@aws-sdk/client-s3';
-import type { IStorageProvider } from '../types.js';
+import type { IStorageProvider } from '../types';
 
 export interface S3Config {
   bucket: string;
@@ -97,7 +97,7 @@ export class S3StorageProvider implements IStorageProvider {
     return {
       size: response.ContentLength || 0,
       mtimeMs: response.LastModified?.getTime() || 0,
-      isDirectory: false, // S3 doesn't have true directories
+      isDirectory: false,
     };
   }
 }

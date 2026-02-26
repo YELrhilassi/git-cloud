@@ -15,10 +15,11 @@ async function run() {
     await fs.rm(baseDir, { recursive: true, force: true });
   } catch (e) {}
 
-  console.log('Initializing GitCloud with LocalStorage...');
+  console.log('Initializing GitCloud with LocalStorage and Compression...');
   const gitCloud = new GitCloud({
     storage: new LocalStorageProvider(baseDir),
-    baseDir: 'my-workspaces'
+    baseDir: 'my-workspaces',
+    compression: true
   });
 
   console.log('Accessing repository "demo-repo"...');
@@ -81,6 +82,29 @@ async function run() {
   console.log('Reading tree of "feature-xyz" without switching...');
   const featureFiles = await repo.getTree({ ref: 'feature-xyz' });
   console.log('Files in feature-xyz tree:', featureFiles);
+
+  console.log('--- Medical Records (Binder) Demo ---');
+  const patientRecord = repo.collection('patient-001');
+
+  console.log('Adding medical report (compressible)...');
+  await patientRecord.put('report.txt', 'Patient shows significant improvement in cognitive tasks after implementing Git-Cloud.');
+
+  console.log('Adding X-Ray image (simulated binary, non-compressible)...');
+  const fakeImage = Buffer.alloc(1024 * 10, 0xAF); // 10KB of 0xAF
+  await patientRecord.put('xray.jpg', fakeImage);
+
+  console.log('Listing binder contents...');
+  const binderFiles = await patientRecord.list();
+  console.log('Binder "patient-001" files:', binderFiles);
+
+  console.log('Committing binder changes...');
+  await patientRecord.commit('Initial medical record for patient-001', {
+    name: 'Dr. Smith',
+    email: 'smith@hospital.org'
+  });
+
+  const reportContent = await patientRecord.get('report.txt', { encoding: 'utf8' });
+  console.log('Retrieved report content:', reportContent);
   
   console.log('Demo completed successfully!');
 }

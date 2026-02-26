@@ -1,18 +1,40 @@
 import * as git from 'isomorphic-git';
 import defaultHttp from 'isomorphic-git/http/node';
-import { GitCloudFS } from './vfs/GitCloudFS.js';
-import type { ILockProvider } from './types.js';
+import { GitCloudFS } from './vfs/GitCloudFS';
+import type { ILockProvider } from './types';
+import { Collection } from './Collection';
 
 export class Repository {
   private http: any;
 
   constructor(
     public readonly id: string,
-    private fs: GitCloudFS,
+    public readonly fs: GitCloudFS,
     private lock: ILockProvider,
     http?: any
   ) {
     this.http = http || defaultHttp;
+  }
+
+  /**
+   * Accesses a specific collection (Binder) within the repository.
+   */
+  collection(collectionId: string, options?: { baseDir?: string }) {
+    return new Collection(this, collectionId, options?.baseDir);
+  }
+
+  /**
+   * Writes a file directly to the repository's filesystem.
+   */
+  async writeFile(filepath: string, content: Buffer | string) {
+    await this.fs.writeFile(filepath, content);
+  }
+
+  /**
+   * Reads a file directly from the repository's filesystem.
+   */
+  async readFile(filepath: string, options?: { encoding?: string }) {
+    return await this.fs.readFile(filepath, options);
   }
 
   /**

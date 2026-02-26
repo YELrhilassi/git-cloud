@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { IStorageProvider } from '../types.js';
+import type { IStorageProvider } from '../types';
 
 export class LocalStorageProvider implements IStorageProvider {
   constructor(private baseDir: string) {}

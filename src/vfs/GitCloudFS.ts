@@ -1,5 +1,5 @@
-import type { IFS, IStorageProvider } from '../types.js';
-import { NamespaceManager } from '../NamespaceManager.js';
+import type { IFS, IStorageProvider } from '../types';
+import { NamespaceManager } from '../NamespaceManager';
 import path from 'path-browserify';
 
 export class GitCloudFS implements IFS {
@@ -54,15 +54,9 @@ export class GitCloudFS implements IFS {
   }
 
   async mkdir(dirPath: string, options?: any): Promise<void> {
-    // Most cloud storages are key-value and don't need explicit directory creation.
-    // We can just ensure the path exists by putting a placeholder if needed, 
-    // but usually, it's enough to just let writeFile handle it.
-    // For LocalStorageProvider, mkdir is already handled in put().
   }
 
   async rmdir(dirPath: string, options?: any): Promise<void> {
-    // Cloud storage: would need to delete all objects with this prefix.
-    // For now, we'll implement a simple version or leave as-is if storage handles it.
   }
 
   async stat(filePath: string, options?: any): Promise<any> {
@@ -90,7 +84,6 @@ export class GitCloudFS implements IFS {
         blocks: Math.ceil(s.size / 4096),
       };
     } catch (e: any) {
-      // If file doesn't exist, it might be a directory in cloud storage (no object, but prefix exists)
       const list = await this.storage.list(resolvedPath);
       if (list.length > 0) {
         const now = new Date();

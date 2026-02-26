@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { IStorageProvider } from '../types.js';
+import type { IStorageProvider } from '../types';
 
 export interface SupabaseConfig {
   url: string;
@@ -48,10 +48,6 @@ export class SupabaseStorageProvider implements IStorageProvider {
       });
 
     if (error) throw error;
-
-    // Supabase returns objects in the current level. 
-    // We need to recursively list if we want full paths like S3.
-    // For simplicity in this prototype, we'll return what we have.
     return data.map(item => `${prefix}/${item.name}`);
   }
 
@@ -75,8 +71,6 @@ export class SupabaseStorageProvider implements IStorageProvider {
   }
 
   async stat(filePath: string): Promise<{ size: number; mtimeMs: number; isDirectory: boolean }> {
-    // Supabase doesn't have a direct 'head' equivalent in the JS SDK that returns all metadata easily.
-    // We can use list() with a filter or getPublicUrl/download metadata if needed.
     const { data, error } = await this.client.storage
       .from(this.bucket)
       .list(filePath.substring(0, filePath.lastIndexOf('/')), {
