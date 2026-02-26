@@ -1,5 +1,5 @@
 import * as git from 'isomorphic-git';
-import defaultHttp from 'isomorphic-git/http/node/index.js';
+import defaultHttp from 'isomorphic-git/http/node';
 import { GitCloudFS } from './vfs/GitCloudFS.js';
 import type { ILockProvider } from './types.js';
 
@@ -97,11 +97,71 @@ export class Repository {
     });
   }
 
-  async log(options: { depth?: number; dir?: string } = {}) {
+  /**
+   * Returns the list of files for a specific ref (branch, commit, or tag)
+   */
+  async getTree(options: { ref?: string; dir?: string } = {}) {
+    return await git.listFiles({
+      fs: this.fs,
+      dir: options.dir || '/',
+      ref: options.ref,
+    });
+  }
+
+  /**
+   * Switches to a different branch or commit
+   */
+  async checkout(options: { ref: string; force?: boolean; dir?: string }) {
+    await git.checkout({
+      fs: this.fs,
+      dir: options.dir || '/',
+      ref: options.ref,
+      force: options.force,
+    });
+  }
+
+  /**
+   * Creates a new branch
+   */
+  async createBranch(options: { name: string; checkout?: boolean; dir?: string }) {
+    await git.branch({
+      fs: this.fs,
+      dir: options.dir || '/',
+      ref: options.name,
+    });
+
+    if (options.checkout) {
+      await this.checkout({ ref: options.name, dir: options.dir });
+    }
+  }
+
+  /**
+   * Lists all local branches
+   */
+  async listBranches(options: { dir?: string } = {}) {
+    return await git.listBranches({
+      fs: this.fs,
+      dir: options.dir || '/',
+    });
+  }
+
+  /**
+   * Returns the name of the current branch
+   */
+  async getCurrentBranch(options: { dir?: string } = {}) {
+    return await git.currentBranch({
+      fs: this.fs,
+      dir: options.dir || '/',
+      fullname: false,
+    });
+  }
+
+  async log(options: { depth?: number; dir?: string; ref?: string } = {}) {
     return await git.log({
       fs: this.fs,
       dir: options.dir || '/',
       depth: options.depth,
+      ref: options.ref,
     });
   }
 }

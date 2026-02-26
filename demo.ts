@@ -53,6 +53,34 @@ async function run() {
   if (log && log[0]) {
     console.log('Last commit:', log[0].commit.message);
   }
+
+  console.log('--- Branching & History Demo ---');
+  
+  const current = await repo.getCurrentBranch();
+  console.log('Current branch:', current);
+
+  console.log('Creating and switching to branch "feature-xyz"...');
+  await repo.createBranch({ name: 'feature-xyz', checkout: true });
+  console.log('Now on branch:', await repo.getCurrentBranch());
+
+  console.log('Creating a file on feature branch...');
+  await storage.put(`${repoRoot}/feature.txt`, 'Feature content');
+  await repo.add({ filepath: 'feature.txt' });
+  await repo.commit({
+    message: 'Add feature file',
+    author: { name: 'Dev', email: 'dev@example.com' }
+  });
+
+  console.log('Files on feature branch:', await repo.listFiles());
+
+  console.log('Switching back to main...');
+  await repo.checkout({ ref: 'main' });
+  console.log('Back on branch:', await repo.getCurrentBranch());
+  console.log('Files on main branch:', await repo.listFiles());
+
+  console.log('Reading tree of "feature-xyz" without switching...');
+  const featureFiles = await repo.getTree({ ref: 'feature-xyz' });
+  console.log('Files in feature-xyz tree:', featureFiles);
   
   console.log('Demo completed successfully!');
 }
