@@ -3,6 +3,7 @@ import { NamespaceManager } from './NamespaceManager';
 import { GitCloudFS } from './vfs/GitCloudFS';
 import { StorageLockProvider } from './providers/StorageLockProvider';
 import { CompressedStorageProvider } from './providers/CompressedStorageProvider';
+import { EncryptedStorageProvider } from './providers/EncryptedStorageProvider';
 import { Repository } from './Repository';
 
 export interface GitCloudConfig {
@@ -11,6 +12,7 @@ export interface GitCloudConfig {
   baseDir?: string;
   http?: any;
   compression?: boolean;
+  encryptionKey?: Buffer; // 32 bytes
 }
 
 export class GitCloud {
@@ -20,9 +22,17 @@ export class GitCloud {
   private http: any;
 
   constructor(config: GitCloudConfig) {
-    this.storage = config.compression 
-      ? new CompressedStorageProvider(config.storage) 
-      : config.storage;
+    let storage = config.storage;
+
+    if (config.compression) {
+      storage = new CompressedStorageProvider(storage);
+    }
+
+    if (config.encryptionKey) {
+      storage = new EncryptedStorageProvider(storage, config.encryptionKey);
+    }
+
+    this.storage = storage;
     this.baseDir = config.baseDir || 'git-cloud-data';
     this.lock = config.lock || new StorageLockProvider(this.storage, `${this.baseDir}/.locks`);
     this.http = config.http;
@@ -48,5 +58,7 @@ export * from './providers/SupabaseStorageProvider';
 export * from './providers/StorageLockProvider';
 export * from './providers/CachedStorageProvider';
 export * from './providers/CompressedStorageProvider';
+export * from './providers/EncryptedStorageProvider';
 export * from './Repository';
 export * from './Collection';
+export * from './Actor';

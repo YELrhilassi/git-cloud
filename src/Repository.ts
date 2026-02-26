@@ -3,6 +3,8 @@ import defaultHttp from 'isomorphic-git/http/node';
 import { GitCloudFS } from './vfs/GitCloudFS';
 import type { ILockProvider } from './types';
 import { Collection } from './Collection';
+import { Actor } from './Actor';
+import type { ActorIdentity } from './Actor';
 
 export class Repository {
   private http: any;
@@ -14,6 +16,13 @@ export class Repository {
     http?: any
   ) {
     this.http = http || defaultHttp;
+  }
+
+  /**
+   * Accesses an Actor view of the repository.
+   */
+  actor(identity: ActorIdentity) {
+    return new Actor(this, identity);
   }
 
   /**
@@ -106,6 +115,7 @@ export class Repository {
     await git.pull({
       fs: this.fs,
       http: this.http,
+      dir: '/',
       ref: options.ref,
       singleBranch: true,
       onAuth: () => ({ username: options.auth?.token || options.auth?.username, password: options.auth?.password }),
