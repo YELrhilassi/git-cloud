@@ -12,6 +12,8 @@
 - **Concurrency**: Distributed locking is implemented via the storage provider itself (using `.lock` files) to ensure atomic operations across multiple serverless instances.
 - **Performance**: We utilize an optional L1 cache in the environment's `/tmp` directory to reduce latency and egress costs from cloud storage.
 - **Supabase Support**: We specifically target Supabase Storage as a first-class citizen, providing a dedicated provider for its unique API.
+- **Security**: Optional AES-256-GCM encryption at the storage level.
+- **Actor Model**: Managed branching workflow for multi-user collaboration.
 
 ## Architecture
 
@@ -19,7 +21,9 @@
 - `IStorageProvider`: Interface for blob operations (get, put, list, delete).
 - `LocalStorageProvider`: Implementation using `node:fs`.
 - `S3StorageProvider`: Implementation using AWS SDK v3.
-- `SupabaseStorageProvider`: Implementation using `@supabase/storage-js`.
+- `SupabaseStorageProvider`: Implementation using `@supabase/supabase-js`.
+- `EncryptedStorageProvider`: AES-256-GCM decorator.
+- `CompressedStorageProvider`: Zlib decorator.
 
 ### 2. Virtual Filesystem (VFS)
 - `GitCloudFS`: Implemented the Node `fs` interface required by `isomorphic-git`.
@@ -32,7 +36,9 @@
 
 ### 4. High-Level API
 - `GitCloud`: Main entry point to initialize storage and manage repositories.
-- `Repository`: Wrapper around `isomorphic-git` for common workflows (clone, commit, push, pull).
+- `Repository`: Wrapper around `isomorphic-git` for common workflows.
+- `Actor`: Managed branching logic (`publish`, `update`, `setup`).
+- `Collection`: Binder paradigm for grouped files.
 
 ## Roadmap
 
@@ -40,18 +46,24 @@
 - Define interfaces (`IStorageProvider`, `IFS`, `ILockProvider`).
 - Implement `NamespaceManager`.
 
-### Phase 2: Base Providers (IN PROGRESS)
+### Phase 2: Base Providers (COMPLETED)
 - Implement `LocalStorageProvider` for development.
 
-### Phase 3: VFS Implementation
+### Phase 3: VFS Implementation (COMPLETED)
 - Build `GitCloudFS` to bridge `isomorphic-git` and `IStorageProvider`.
 - Implement simple file-based locking.
 
-### Phase 4: Cloud Providers
+### Phase 4: Cloud Providers (COMPLETED)
 - Implement `S3StorageProvider`.
 - Implement `SupabaseStorageProvider`.
 
-### Phase 5: Optimizations & API
+### Phase 5: Advanced Features (COMPLETED)
+- AES-256-GCM Encryption.
+- Actor-based branching model.
+- Selective Sync (Visibility Scopes).
+- Smart Auto-Compression.
+
+### Phase 6: Optimizations & API (COMPLETED)
 - Implement `/tmp` caching layer.
 - High-level `GitCloud` class.
 - Documentation and examples.

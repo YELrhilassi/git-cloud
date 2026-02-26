@@ -2,18 +2,19 @@
 
 A serverless-optimized Git management library for Node.js. 
 
-`git-cloud` allows you to have full Git functionality in ephemeral environments (like AWS Lambda, Vercel, or Google Cloud Functions) where native Git binaries are missing. It leverages `isomorphic-git` and provides an adaptive storage layer to store your `.git` data anywhere.
+`git-cloud` allows you to have full Git functionality in ephemeral environments (like AWS Lambda, Vercel, or Google Cloud Functions) where native Git binaries are missing. It leverages `isomorphic-git` and provides an adaptive storage layer to store your `.git` data anywhere with built-in encryption, compression, and a robust actor-based workflow.
 
 ## Features
 
 - **☁️ Cloud Native**: Designed for serverless environments with no native dependencies.
 - **📂 Adaptive Storage**: Support for AWS S3, Supabase Storage, and Local Filesystem.
-- **👥 Multi-Tenancy**: Manage multiple independent repositories in a single storage bucket using namespaces.
+- **🔐 AES-256-GCM Encryption**: Transparently encrypt your Git data at the storage level.
+- **📦 Smart Compression**: Automatic Zlib compression for text and Git objects, skipping already compressed formats (JPG, PDF, etc.).
+- **👥 Actor-Based Workflow**: Managed branching model for multi-user collaboration with `publish` and `update` flows.
+- **🏢 Multi-Tenancy**: Manage multiple independent repositories in a single storage bucket using namespaces.
 - **🔒 Concurrency Control**: Distributed locking ensures safe operations across multiple serverless instances.
 - **⚡ Performance Caching**: Optional L1 cache using `/tmp` to minimize cloud storage latency and costs.
-- **📦 Smart Compression**: Automatic Zlib compression for text and Git objects, while skipping already compressed formats (JPG, PDF, etc.).
 - **📂 Binder Paradigm**: High-level `Collection` API for managing sets of files (like medical records) as logical units.
-- **🛠️ High-Level API**: Simple wrappers for `clone`, `commit`, `push`, `pull`, and `log`.
 
 ## Installation
 
@@ -21,56 +22,104 @@ A serverless-optimized Git management library for Node.js.
 npm install git-cloud isomorphic-git
 ```
 
-## Quick Start (Local Storage)
+## Quick Start
 
 ```javascript
 import { GitCloud, LocalStorageProvider } from 'git-cloud';
 
 const gitCloud = new GitCloud({
   storage: new LocalStorageProvider('./my-git-storage'),
-  baseDir: 'workspaces'
+  baseDir: 'workspaces',
+  compression: true,
+  encryptionKey: Buffer.from('your-32-byte-secret-key-here...') 
 });
 
 const repo = await gitCloud.repository('my-project');
-await repo.init();
-// ...
-```
 
-## Binders & Collections
+// Initializes with a metadata.json automatic commit
+await repo.init({ metadata: { owner: 'Alice' } });
 
-The `Collection` API allows you to manage logical sets of files (like patient binders) without dealing with full paths manually.
-
-```javascript
-const patientRecord = repo.collection('patient-001');
-
-// Add a file to the binder
-await patientRecord.put('report.txt', 'Health summary...');
-
-// Add a binary file (automatically handles skip-compression for .jpg)
-await patientRecord.put('xray.jpg', imageBuffer);
-
-// Commit binder changes
-await patientRecord.commit('Added annual checkup', { name: 'Dr. Smith', email: 'smith@hosp.org' });
-
-// List contents of the binder
-const files = await patientRecord.list(); // ['report.txt', 'xray.jpg']
-```
-
-## Custom HTTP Plugin
-
-If you are using this in a custom environment or need specific proxy settings, you can provide your own `http` plugin (compatible with `isomorphic-git`'s http plugin API).
-
-```javascript
-import { GitCloud } from 'git-cloud';
-import http from 'isomorphic-git/http/node'; // or your custom plugin
-
-const gitCloud = new GitCloud({
-  storage: myStorageProvider,
-  http: http 
+await repo.commit({
+  message: 'Initial commit',
+  author: { name: 'Alice', email: 'alice@example.com' }
 });
 ```
 
-## Cloud Storage Examples
+---
+
+## API Reference
+
+### `GitCloud` (Main Factory)
+
+Entry point for configuring storage and accessing repositories.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `storage` | `IStorageProvider` | The storage backend (Local, S3, Supabase). |
+| `baseDir` | `string` | Root directory/prefix in storage (Default: `git-cloud-data`). |
+| `encryptionKey`| `Buffer` | 32-byte key for AES-256-GCM encryption. |
+| `compression` | `boolean` | Enable transparent Zlib compression. |
+| `lock` | `ILockProvider` | Custom locking provider (Optional). |
+| `http` | `any` | Custom `isomorphic-git` http plugin (Optional). |
+
+#### Methods
+- `repository(id: string): Promise<Repository>`: Returns a repository instance.
+
+---
+
+### `Repository`
+
+Standard Git operations wrapped for cloud storage.
+
+- `init(options?)`: Initializes repo with `metadata.json`.
+- `clone(options)`: Clone a remote repository.
+- `commit(options)`: Commit staged changes.
+- `push(options)`: Push to a remote.
+- `pull(options)`: Pull from a remote.
+- `checkout(options)`: Switch branches or refs.
+- `createBranch(options)`: Create a new branch.
+- `listBranches()`: List all local branches.
+- `getCurrentBranch()`: Get current branch name.
+- `getTree(options)`: Get file list for a specific ref.
+- `actor(identity)`: Get an `Actor` view for branching workflows.
+- `collection(id, options)`: Get a `Collection` (Binder) view.
+
+---
+
+### `Actor` (Collaborative Workflow)
+
+Each actor (User/Doctor/Bot) operates on their own branch (`actors/{name}`) and syncs with `main`.
+
+- `setup()`: Creates the actor's branch if it doesn't exist.
+- `update(options?)`: Merges `main` into the actor's branch.
+    - `excludePaths`: Array of paths to ignore during the merge (keeps actor's version).
+- `publish(options?)`: Merges actor's changes into `main`.
+    - `paths`: Selective list of files/folders to publish. Default: everything in `shared` collections.
+    - *Note: Automatically updates `metadata.json` on main.*
+- `previewUpdate()` / `previewPublish()`: Returns log entries for pending changes.
+- `revert(depth)`: Rolls back the actor's branch.
+
+---
+
+### `Collection` (Binder Paradigm)
+
+Scoped view of files within a repository, perfect for records management.
+
+- `put(name, content)`: Writes and stages a file in the collection.
+- `get(name, options)`: Reads a file from the collection.
+- `list()`: Lists files within the collection scope.
+- `commit(message, author)`: Commits changes made to the collection.
+
+**Visibility Scopes:**
+Collections can be `Public` (Shared) or `Private` (Internal).
+```javascript
+const notes = repo.collection('session-notes', { visibility: Visibility.Private });
+// Private collections stay on the Actor's branch during publish()
+```
+
+---
+
+## Storage Providers
 
 ### AWS S3 / Generic S3
 ```javascript
@@ -80,8 +129,8 @@ const storage = new S3StorageProvider({
   bucket: 'my-git-bucket',
   region: 'us-east-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    accessKeyId: '...',
+    secretAccessKey: '...'
   }
 });
 ```
@@ -91,18 +140,20 @@ const storage = new S3StorageProvider({
 import { SupabaseStorageProvider } from 'git-cloud';
 
 const storage = new SupabaseStorageProvider({
-  url: process.env.SUPABASE_URL,
-  key: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  bucket: 'git-repos'
+  url: 'https://xyz.supabase.co',
+  key: 'service-role-key',
+  bucket: 'git-vault'
 });
 ```
 
-## Architecture
+## Performance & Security
 
-1. **Storage Provider**: Abstract layer for blob storage (S3, Supabase, etc.).
-2. **GitCloudFS**: A virtual filesystem that makes `isomorphic-git` believe it's talking to a disk.
-3. **Namespace Manager**: Prepends repository IDs to paths for isolation.
-4. **Lock Manager**: Prevents race conditions during write operations.
+### Smart Compression
+`git-cloud` automatically detects compressible files (JSON, TXT, Git Objects) and uses `pako` for Zlib compression. It skips binary formats like `JPG`, `PNG`, and `PDF` to avoid wasting CPU.
+
+### AES-256-GCM Encryption
+When `encryptionKey` is provided, all data is encrypted before leaving the serverless environment. 
+**Chain:** `FS -> Encryption -> Compression -> Cloud Storage`.
 
 ## License
 
