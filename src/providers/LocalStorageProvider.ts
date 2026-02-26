@@ -31,7 +31,8 @@ export class LocalStorageProvider implements IStorageProvider {
       return entries
         .filter(entry => entry.isFile())
         .map(entry => {
-           const relative = path.relative(this.baseDir, path.join(entry.path, entry.name));
+           const parentPath = (entry as any).path || (entry as any).parentPath || fullPath;
+           const relative = path.relative(this.baseDir, path.join(parentPath, entry.name));
            return relative;
         });
     } catch (error: any) {
